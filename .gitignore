@@ -1,2 +1,6 @@
 network_org.py
 train_org.py
+**/data
+**/out
+**/checkpoint
+

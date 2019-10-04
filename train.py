@@ -17,9 +17,32 @@ from numpy import array
 #from skimage.transform import rescale, resize
 #from scipy.misc import imresize
 import os
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import scale
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd 
 
 np.random.seed(10)
 image_shape = (8,8,1)
+
+df = pd.read_pickle("./data/2.5TeV_neutrons_UniPlane22_Reposite_100k_55file.pickle")
+df.head()
+
+#load data
+lr = df['4_truth']
+hr = df[f'{image_shape[0]}_truth']
+
+
+def scale_img(img, axis):
+    return (img - np.mean(img))/np.std(img)
+
+lr = np.stack(lr.apply(scale_img, axis = 1).values)
+hr = np.stack(hr.apply(scale_img, axis = 1).values)
+
+x_train_lr, x_test_lr, x_train_hr, x_test_hr = train_test_split(lr,hr, test_size=0.33, random_state=42)
+
+
 
 def vgg_loss(y_true, y_pred):
     
@@ -64,22 +87,19 @@ def plot_generated_images(epoch,generator, examples=3 , dim=(1, 3), figsize=(15,
     plt.figure(figsize=figsize)
     
     img_1 = plt.subplot(dim[0], dim[1], 1)
-    plt.colorbar(img_1)
     plt.imshow(image_batch_lr[1].reshape(4,4), interpolation='nearest')
     plt.axis('off')
         
     img_2 = plt.subplot(dim[0], dim[1], 2)
-    plt.colorbar(img_2)
-    plt.imshow(generated_image[1].reshape(8,8), interpolation='nearest')
+    plt.imshow(generated_image[1].reshape(image_shape[0],image_shape[1]), interpolation='nearest')
     plt.axis('off')
     
     img3 = plt.subplot(dim[0], dim[1], 3)
-    plt.colorbar(img3)
     plt.imshow(image_batch_hr[1], interpolation='nearest')
     plt.axis('off')
     
     plt.tight_layout()
-    plt.savefig('../out/gan_generated_image_epoch_%d.png' % epoch)
+    plt.savefig('./out/gan_generated_image_epoch_%d.png' % epoch)
     
 
 def train(epochs=1, batch_size=128):
@@ -101,7 +121,8 @@ def train(epochs=1, batch_size=128):
     for e in range(1, epochs+1):
         print ('-'*15, 'Epoch %d' % e, '-'*15)
         for _ in range(batch_count):
-            
+            #if e == 0 and os.isfile("./checkpoint/gen_model%d.h5"):
+                
             rand_nums = np.random.randint(0, x_train_hr.shape[0], size=batch_size)
             
             image_batch_hr = x_train_hr[rand_nums].reshape(batch_size,image_shape[0],image_shape[1],1)
@@ -131,7 +152,9 @@ def train(epochs=1, batch_size=128):
         if e == 1 or e % 5 == 0:
             plot_generated_images(e, generator)
         if e % 10 == 0:
-            generator.save('../checkpoint/gen_model%d.h5' % e)
-            discriminator.save('../checkpoint/dis_model%d.h5' % e)
-            gan.save('../checkpoint/gan_model%d.h5' % e)
+            generator.save('./checkpoint/gen_model%d.h5' % e)
+            discriminator.save('./checkpoint/dis_model%d.h5' % e)
+            gan.save('./checkpoint/gan_model%d.h5' % e)
     print("Done")
+
+train(epochs=100, batch_size=128)
