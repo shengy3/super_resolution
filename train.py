@@ -22,9 +22,13 @@ from sklearn.preprocessing import scale
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd 
+from keras.models import load_model
+from scipy.ndimage import zoom
 
 np.random.seed(10)
 image_shape = (8,8,1)
+downscale_factor = 2
+
 
 df = pd.read_pickle("./data/2.5TeV_neutrons_UniPlane22_Reposite_100k_55file.pickle")
 df.head()
@@ -69,7 +73,7 @@ def get_gan_network(discriminator, shape, generator, optimizer):
 
 print("data processed")
 
-def plot_generated_images(epoch,generator, examples=3 , dim=(1, 3), figsize=(15, 5)):
+def plot_generated_images(epoch,generator, examples=3 , dim=(1, 3), figsize=(20, 5)):
     
     rand_nums = np.random.randint(0, x_test_hr.shape[0], size=examples)
     image_batch_hr = x_test_hr[rand_nums]
@@ -86,15 +90,19 @@ def plot_generated_images(epoch,generator, examples=3 , dim=(1, 3), figsize=(15,
     
     plt.figure(figsize=figsize)
     
-    img_1 = plt.subplot(dim[0], dim[1], 1)
+    plt.subplot(dim[0], dim[1], 1)
     plt.imshow(image_batch_lr[1].reshape(4,4), interpolation='nearest')
     plt.axis('off')
         
-    img_2 = plt.subplot(dim[0], dim[1], 2)
+    plt.subplot(dim[0], dim[1], 2)
     plt.imshow(generated_image[1].reshape(image_shape[0],image_shape[1]), interpolation='nearest')
     plt.axis('off')
     
-    img3 = plt.subplot(dim[0], dim[1], 3)
+    plt.subplot(dim[0], dim[1], 3)
+    plt.imshow(zoom(image_batch_lr[1].reshape(4,4), downscale_factor).reshape(image_shape[0],image_shape[1]), interpolation='nearest')
+    plt.axis('off')
+
+    plt.subplot(dim[0], dim[1], 4)
     plt.imshow(image_batch_hr[1], interpolation='nearest')
     plt.axis('off')
     
@@ -104,7 +112,6 @@ def plot_generated_images(epoch,generator, examples=3 , dim=(1, 3), figsize=(15,
 
 def train(epochs=1, batch_size=128):
 
-    downscale_factor = 2
     
     batch_count = int(x_train_hr.shape[0] / batch_size)
     shape = (image_shape[0]//downscale_factor, image_shape[1]//downscale_factor, image_shape[2])
@@ -121,8 +128,12 @@ def train(epochs=1, batch_size=128):
     for e in range(1, epochs+1):
         print ('-'*15, 'Epoch %d' % e, '-'*15)
         for _ in range(batch_count):
-            #if e == 0 and os.isfile("./checkpoint/gen_model%d.h5"):
-                
+            if e == 0 and os.isfile("./checkpoint/gen_model100.h5"):
+                print("Continue training")
+                generator = load_model('./checkpoint/gen_model100.h5' % e)
+                discriminator = load_model('./checkpoint/dis_model100.h5' % e)
+                gan = load_model('./checkpoint/gan_model100.h5' % e)
+            
             rand_nums = np.random.randint(0, x_train_hr.shape[0], size=batch_size)
             
             image_batch_hr = x_train_hr[rand_nums].reshape(batch_size,image_shape[0],image_shape[1],1)
